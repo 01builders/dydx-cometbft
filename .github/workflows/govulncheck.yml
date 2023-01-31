@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - v0.38.x
+      - dydx-fork-**
 
 jobs:
   govulncheck:
