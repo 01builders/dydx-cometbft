@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - v1.x
+      - dydx-fork-**
 
 jobs:
   build:
