@@ -7,6 +7,8 @@ on:
       - "**.go"
     branches:
       - v1.x
+      - v0.38.x
+      - dydx-fork-**
 
 jobs:
   tests:
