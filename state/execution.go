@@ -214,9 +214,23 @@ func (blockExec *BlockExecutor) ApplyVerifiedBlock(
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
+// ApplyBlock locks the mempool, which effectively locks the mempool for BeginBlock,
+// DeliverTx, EndBlock, and Commit.
 func (blockExec *BlockExecutor) ApplyBlock(
 	state State, blockID types.BlockID, block *types.Block, syncingToHeight int64,
 ) (State, error) {
+	// Lock the mempool.
+	blockExec.mempool.Lock()
+	defer blockExec.mempool.Unlock()
+
+	// while mempool is Locked, flush to ensure all async requests have completed
+	// in the ABCI app before Commit.
+	err := blockExec.mempool.FlushAppConn()
+	if err != nil {
+		blockExec.logger.Error("client error during mempool.FlushAppConn", "err", err)
+		return state, err
+	}
+
 	if err := validateBlock(state, block); err != nil {
 		return state, ErrInvalidBlock(err)
 	}
