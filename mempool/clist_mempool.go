@@ -528,9 +528,10 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 
-		// If this transaction is Cosmos transaction containing a `PlaceOrder` or `CancelOrder` message,
+		// If this transaction is Cosmos transaction containing a
+		// short term `PlaceOrder` or `CancelOrder` message,
 		// don't include it in the next proposed block.
-		if IsClobOrderTransaction(memTx.tx, mem.logger) {
+		if IsShortTermClobOrderTransaction(memTx.tx, mem.logger) {
 			continue
 		}
 
@@ -685,9 +686,10 @@ func (mem *CListMempool) recheckTxs() {
 	mem.recheck.init(mem.txs.Front(), mem.txs.Back())
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
-		// If this transaction is Cosmos transaction containing a `PlaceOrder` or `CancelOrder` message,
+		// If this transaction is Cosmos transaction containing a
+		// short term `PlaceOrder` or `CancelOrder` message,
 		// remove it from the mempool instead of rechecking.
-		if IsClobOrderTransaction(memTx.tx, mem.logger) {
+		if IsShortTermClobOrderTransaction(memTx.tx, mem.logger) {
 			if err := mem.RemoveTxByKey(memTx.tx.Key()); err != nil {
 				mem.logger.Debug("Recheck failed to remove short term CLOB transaction from mempool", "err", err)
 			}
