@@ -18,6 +18,7 @@ import (
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/types"
+	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // CListMempool is an ordered in-memory pool for transactions before they are
@@ -489,6 +490,187 @@ func (mem *CListMempool) handleRecheckTxResponse(tx types.Tx) func(res *abci.Res
 	}
 }
 
+// callback, which is called after the app checked the tx for the first time.
+//
+// The case where the app checks the tx for the second and subsequent times is
+// handled by the resCbRecheck callback.
+func (mem *CListMempool) resCbFirstTime(
+	tx []byte,
+	txInfo TxInfo,
+	res *abci.Response,
+) {
+	switch r := res.Value.(type) {
+	case *abci.Response_CheckTx:
+		var postCheckErr error
+		if mem.postCheck != nil {
+			postCheckErr = mem.postCheck(tx, r.CheckTx)
+		}
+		if (r.CheckTx.Code == abci.CodeTypeOK) && postCheckErr == nil {
+			// Check mempool isn't full again to reduce the chance of exceeding the
+			// limits.
+			if err := mem.isFull(len(tx)); err != nil {
+				// remove from cache (mempool might have a space later)
+				mem.cache.Remove(tx)
+				mem.logger.Error(err.Error())
+				return
+			}
+
+			// Check transaction not already in the mempool
+			if e, ok := mem.txsMap.Load(types.Tx(tx).Key()); ok {
+				memTx := e.(*clist.CElement).Value.(*mempoolTx)
+				memTx.addSender(txInfo.SenderID)
+				mem.logger.Debug(
+					"transaction already there, not adding it again",
+					"tx", types.Tx(tx).Hash(),
+					"res", r,
+					"height", mem.height.Load(),
+					"total", mem.Size(),
+				)
+				return
+			}
+
+			memTx := &mempoolTx{
+				height:    mem.height.Load(),
+				gasWanted: r.CheckTx.GasWanted,
+				timestamp: *mem.timestamp.Load(),
+				tx:        tx,
+			}
+			memTx.addSender(txInfo.SenderID)
+			mem.addTx(memTx)
+			mem.logger.Debug(
+				"added good transaction",
+				"tx", types.Tx(tx).Hash(),
+				"res", r,
+				"height", mem.height.Load(),
+				"total", mem.Size(),
+			)
+
+			// If this transaction is a short term `PlaceOrder` or `CancelOrder` transaction,
+			// don't call `notifyTxsAvailable()`. The `notifyTxsAvailable()` function
+			// uses a channel in the mempool called `txsAvailable` to signal to the
+			// consensus algorithm that transactions are available to be included in
+			// the next proposal. If no transactions are available for inclusion in
+			// the next proposal, the consensus algorithm will wait for `create_empty_blocks_interval`
+			// before proposing an empty block instead.
+			if IsShortTermClobOrderTransaction(memTx.tx, mem.logger) {
+				return
+			}
+
+			mem.notifyTxsAvailable()
+		} else {
+			// ignore bad transaction
+			mem.logger.Debug(
+				"rejected bad transaction",
+				"tx", types.Tx(tx).Hash(),
+				"peerID", txInfo.SenderP2PID,
+				"res", r,
+				"err", postCheckErr,
+			)
+			mem.metrics.FailedTxs.Add(1)
+
+			if !mem.config.KeepInvalidTxsInCache {
+				// remove from cache (it might be good later)
+				mem.cache.Remove(tx)
+			}
+		}
+
+	default:
+		// ignore other messages
+	}
+}
+
+// isClobOrderTransaction returns true if the provided `mempoolTx` is a
+// Cosmos transaction containing a `MsgPlaceOrder` or `MsgCancelOrder` message.
+func (mem *CListMempool) isClobOrderTransaction(memTx *mempoolTx) bool {
+	cosmosTx := cosmostx.Tx{}
+	err := cosmosTx.Unmarshal(memTx.tx)
+	if err != nil {
+		mem.logger.Error("isClobOrderTransaction error. Invalid Cosmos Transaction.")
+		return false
+	}
+
+	if cosmosTx.Body != nil && len(cosmosTx.Body.Messages) == 1 &&
+		(cosmosTx.Body.Messages[0].TypeUrl == "/dydxprotocol.clob.MsgPlaceOrder" ||
+			cosmosTx.Body.Messages[0].TypeUrl == "/dydxprotocol.clob.MsgCancelOrder") {
+		return true
+	}
+
+	return false
+}
+
+// callback, which is called after the app rechecked the tx.
+//
+// The case where the app checks the tx for the first time is handled by the
+// resCbFirstTime callback.
+func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
+	switch r := res.Value.(type) {
+	case *abci.Response_CheckTx:
+		tx := req.GetCheckTx().Tx
+		memTx := mem.recheckCursor.Value.(*mempoolTx)
+
+		// Search through the remaining list of tx to recheck for a transaction that matches
+		// the one we received from the ABCI application.
+		for {
+			if bytes.Equal(tx, memTx.tx) {
+				// We've found a tx in the recheck list that matches the tx that we
+				// received from the ABCI application.
+				// Break, and use this transaction for further checks.
+				break
+			}
+
+			mem.logger.Error(
+				"re-CheckTx transaction mismatch",
+				"got", types.Tx(tx),
+				"expected", memTx.tx,
+			)
+
+			if mem.recheckCursor == mem.recheckEnd {
+				// we reached the end of the recheckTx list without finding a tx
+				// matching the one we received from the ABCI application.
+				// Return without processing any tx.
+				mem.recheckCursor = nil
+				return
+			}
+
+			mem.recheckCursor = mem.recheckCursor.Next()
+			memTx = mem.recheckCursor.Value.(*mempoolTx)
+		}
+
+		var postCheckErr error
+		if mem.postCheck != nil {
+			postCheckErr = mem.postCheck(tx, r.CheckTx)
+		}
+
+		if (r.CheckTx.Code != abci.CodeTypeOK) || postCheckErr != nil {
+			// Tx became invalidated due to newly committed block.
+			mem.logger.Debug("tx is no longer valid", "tx", types.Tx(tx).Hash(), "res", r, "err", postCheckErr)
+			if err := mem.RemoveTxByKey(memTx.tx.Key()); err != nil {
+				mem.logger.Debug("Transaction could not be removed from mempool", "err", err)
+			}
+			// We remove the invalid tx from the cache because it might be good later
+			if !mem.config.KeepInvalidTxsInCache {
+				mem.cache.Remove(tx)
+			}
+		}
+		if mem.recheckCursor == mem.recheckEnd {
+			mem.recheckCursor = nil
+		} else {
+			mem.recheckCursor = mem.recheckCursor.Next()
+		}
+		if mem.recheckCursor == nil {
+			// Done!
+			mem.logger.Debug("done rechecking txs")
+
+			// incase the recheck removed all txs
+			if mem.Size() > 0 {
+				mem.notifyTxsAvailable()
+			}
+		}
+	default:
+		// ignore other messages
+	}
+}
+
 // Safe for concurrent use by multiple goroutines.
 func (mem *CListMempool) TxsAvailable() <-chan struct{} {
 	return mem.txsAvailable
@@ -523,6 +705,12 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 	txs := make([]types.Tx, 0, mem.txs.Len())
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
+
+		// If this transaction is Cosmos transaction containing a `PlaceOrder` or `CancelOrder` message,
+		// don't include it in the next proposed block.
+		if mem.isClobOrderTransaction(memTx) {
+			continue
+		}
 
 		txs = append(txs, memTx.tx)
 
@@ -639,6 +827,17 @@ func (mem *CListMempool) recheckTxs() {
 	}
 
 	mem.recheck.init(mem.txs.Front(), mem.txs.Back())
+	for e := mem.txs.Front(); e != nil; e = e.Next() {
+		memTx := e.Value.(*mempoolTx)
+		// If this transaction is Cosmos transaction containing a `PlaceOrder` or `CancelOrder` message,
+		// remove it from the mempool instead of rechecking.
+		if mem.isClobOrderTransaction(memTx) {
+			mem.RemoveTxByKey(memTx.tx.Key())
+		}
+	}
+
+	mem.recheckCursor = mem.txs.Front()
+	mem.recheckEnd = mem.txs.Back()
 
 	// NOTE: CheckTx for new transactions cannot be executed concurrently
 	// because this function has the lock (via Update and Lock).
