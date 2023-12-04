@@ -18,6 +18,7 @@ import (
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/types"
+	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // CListMempool is an ordered in-memory pool for transactions before they are
@@ -489,6 +490,25 @@ func (mem *CListMempool) handleRecheckTxResponse(tx types.Tx) func(res *abci.Res
 	}
 }
 
+// isClobOrderTransaction returns true if the provided `mempoolTx` is a
+// Cosmos transaction containing a `MsgPlaceOrder` or `MsgCancelOrder` message.
+func (mem *CListMempool) isClobOrderTransaction(memTx *mempoolTx) bool {
+	cosmosTx := cosmostx.Tx{}
+	err := cosmosTx.Unmarshal(memTx.tx)
+	if err != nil {
+		mem.logger.Error("isClobOrderTransaction error. Invalid Cosmos Transaction.")
+		return false
+	}
+
+	if cosmosTx.Body != nil && len(cosmosTx.Body.Messages) == 1 &&
+		(cosmosTx.Body.Messages[0].TypeUrl == "/dydxprotocol.clob.MsgPlaceOrder" ||
+			cosmosTx.Body.Messages[0].TypeUrl == "/dydxprotocol.clob.MsgCancelOrder") {
+		return true
+	}
+
+	return false
+}
+
 // Safe for concurrent use by multiple goroutines.
 func (mem *CListMempool) TxsAvailable() <-chan struct{} {
 	return mem.txsAvailable
@@ -523,6 +543,12 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 	txs := make([]types.Tx, 0, mem.txs.Len())
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
+
+		// If this transaction is Cosmos transaction containing a `PlaceOrder` or `CancelOrder` message,
+		// don't include it in the next proposed block.
+		if mem.isClobOrderTransaction(memTx) {
+			continue
+		}
 
 		txs = append(txs, memTx.tx)
 
@@ -639,6 +665,14 @@ func (mem *CListMempool) recheckTxs() {
 	}
 
 	mem.recheck.init(mem.txs.Front(), mem.txs.Back())
+	for e := mem.txs.Front(); e != nil; e = e.Next() {
+		memTx := e.Value.(*mempoolTx)
+		// If this transaction is Cosmos transaction containing a `PlaceOrder` or `CancelOrder` message,
+		// remove it from the mempool instead of rechecking.
+		if mem.isClobOrderTransaction(memTx) {
+			mem.RemoveTxByKey(memTx.tx.Key())
+		}
+	}
 
 	// NOTE: CheckTx for new transactions cannot be executed concurrently
 	// because this function has the lock (via Update and Lock).
