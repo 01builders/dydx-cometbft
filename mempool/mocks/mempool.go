@@ -8,6 +8,8 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
+	time "time"
+
 	p2p "github.com/cometbft/cometbft/p2p"
 
 	types "github.com/cometbft/cometbft/types"
@@ -207,8 +209,8 @@ func (_m *Mempool) Unlock() {
 	_m.Called()
 }
 
-// Update provides a mock function with given fields: blockHeight, blockTxs, deliverTxResponses, newPreFn, newPostFn
-func (_m *Mempool) Update(blockHeight int64, blockTxs types.Txs, deliverTxResponses []*v1.ExecTxResult, newPreFn mempool.PreCheckFunc, newPostFn mempool.PostCheckFunc) error {
+// Update provides a mock function with given fields: blockHeight, blockTime, blockTxs, deliverTxResponses, newPreFn, newPostFn
+func (_m *Mempool) Update(blockHeight int64, blockTime time.time, blockTxs types.Txs, deliverTxResponses []*v1.ExecTxResult, newPreFn mempool.PreCheckFunc, newPostFn mempool.PostCheckFunc) error {
 	ret := _m.Called(blockHeight, blockTxs, deliverTxResponses, newPreFn, newPostFn)
 
 	if len(ret) == 0 {
@@ -216,8 +218,8 @@ func (_m *Mempool) Update(blockHeight int64, blockTxs types.Txs, deliverTxRespon
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int64, types.Txs, []*v1.ExecTxResult, mempool.PreCheckFunc, mempool.PostCheckFunc) error); ok {
-		r0 = rf(blockHeight, blockTxs, deliverTxResponses, newPreFn, newPostFn)
+	if rf, ok := ret.Get(0).(func(int64, time.Time, types.Txs, []*v1.ExecTxResult, mempool.PreCheckFunc, mempool.PostCheckFunc) error); ok {
+		r0 = rf(blockHeight, blockTime, blockTxs, deliverTxResponses, newPreFn, newPostFn)
 	} else {
 		r0 = ret.Error(0)
 	}

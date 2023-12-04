@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,8 +33,8 @@ func TestNopMempool_Basic(t *testing.T) {
 	err = mem.FlushAppConn()
 	require.NoError(t, err)
 
-	err = mem.Update(0, nil, nil, nil, nil)
-	require.NoError(t, err)
+	err = mem.Update(0, time.Now(), nil, nil, nil, nil)
+	assert.NoError(t, err)
 
 	txsAvailable := mem.TxsAvailable()
 	assert.Nil(t, txsAvailable)

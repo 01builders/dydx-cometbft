@@ -99,7 +99,7 @@ func TestReactorConcurrency(t *testing.T) {
 			reactors[0].mempool.Lock()
 			defer reactors[0].mempool.Unlock()
 
-			err := reactors[0].mempool.Update(1, txs, abciResponses(len(txs), abci.CodeTypeOK), nil, nil)
+			err := reactors[0].mempool.Update(1, , time.UnixMilli(1), txs, abciResponses(len(txs), abci.CodeTypeOK), nil, nil)
 			require.NoError(t, err)
 		}()
 
@@ -112,7 +112,7 @@ func TestReactorConcurrency(t *testing.T) {
 			reactors[1].mempool.PreUpdate()
 			reactors[1].mempool.Lock()
 			defer reactors[1].mempool.Unlock()
-			err := reactors[1].mempool.Update(1, []types.Tx{}, make([]*abci.ExecTxResult, 0), nil, nil)
+			err := reactors[1].mempool.Update(1, time.UnixMilli(1) []types.Tx{}, make([]*abci.ExecTxResult, 0), nil, nil)
 			require.NoError(t, err)
 		}()
 

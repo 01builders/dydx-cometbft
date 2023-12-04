@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"errors"
+	"time"
 
 	abcicli "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -46,6 +47,7 @@ func (*NopMempool) PreUpdate() {}
 // Update does nothing.
 func (*NopMempool) Update(
 	int64,
+	time.Time,
 	types.Txs,
 	[]*abci.ExecTxResult,
 	PreCheckFunc,

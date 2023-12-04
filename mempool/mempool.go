@@ -3,6 +3,7 @@ package mempool
 import (
 	"crypto/sha256"
 	"fmt"
+	"time"
 
 	abcicli "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -64,6 +65,7 @@ type Mempool interface {
 	// 2. Lock/Unlock must be managed by the caller.
 	Update(
 		blockHeight int64,
+		blockTime time.Time,
 		blockTxs types.Txs,
 		deliverTxResponses []*abci.ExecTxResult,
 		newPreFn PreCheckFunc,
