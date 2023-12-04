@@ -33,6 +33,7 @@ require (
 	golang.org/x/crypto v0.32.0
 	golang.org/x/net v0.34.0
 	google.golang.org/grpc v1.70.0
+	github.com/cosmos/cosmos-sdk v0.50.5
 )
 
 require github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
