@@ -5,6 +5,8 @@ name: Lint, format and check the code for typos
 #
 # To run this locally, simply run `make lint` from the root of the repo.
 
+# Effectively disable this temporarily on the fork repo. Lint has been broken across
+# the repo for a while, and the best way to fix is to upgrade to latest canonical version.
 on:
   pull_request:
   merge_group:
