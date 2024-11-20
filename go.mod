@@ -42,6 +42,7 @@ require github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/cometbft/cometbft-db v0.14.1
+	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.53.4
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/go-git/go-git/v5 v5.13.2
@@ -85,7 +86,6 @@ require (
 	github.com/containerd/continuity v0.3.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/cosmos-db v1.1.1 // indirect
-	github.com/cosmos/cosmos-proto v1.0.0-beta.5 // indirect
 	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.3.6 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
