@@ -11,6 +11,10 @@ import (
 	proto "github.com/cosmos/gogoproto/proto"
 	_ "github.com/cosmos/gogoproto/types"
 	github_com_cosmos_gogoproto_types "github.com/cosmos/gogoproto/types"
+	_ "github.com/golang/protobuf/ptypes/duration"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
 	math_bits "math/bits"
@@ -2831,6 +2835,9 @@ type FinalizeBlockResponse struct {
 	// that execution of the transactions was deterministic.
 	// It is up to the application to decide which algorithm to use.
 	AppHash []byte `protobuf:"bytes,5,opt,name=app_hash,json=appHash,proto3" json:"app_hash,omitempty"`
+	// delay between the time when this block is committed and the next height is started.
+	// previously `timeout_commit` in config.toml
+	NextBlockDelay time.Duration `protobuf:"bytes,6,opt,name=next_block_delay,json=nextBlockDelay,proto3,stdduration" json:"next_block_delay"`
 }
 
 func (m *FinalizeBlockResponse) Reset()         { *m = FinalizeBlockResponse{} }
@@ -2901,7 +2908,13 @@ func (m *FinalizeBlockResponse) GetAppHash() []byte {
 	return nil
 }
 
-// CommitInfo contains votes for the particular round.
+func (m *ResponseFinalizeBlock) GetNextBlockDelay() time.Duration {
+	if m != nil {
+		return m.NextBlockDelay
+	}
+	return 0
+}
+
 type CommitInfo struct {
 	Round int32      `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
 	Votes []VoteInfo `protobuf:"bytes,2,rep,name=votes,proto3" json:"votes"`
@@ -6261,6 +6274,14 @@ func (m *FinalizeBlockResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	n49, err49 := github_com_cosmos_gogoproto_types.StdDurationMarshalTo(m.NextBlockDelay, dAtA[i-github_com_cosmos_gogoproto_types.SizeOfStdDuration(m.NextBlockDelay):])
+	if err49 != nil {
+		return 0, err49
+	}
+	i -= n49
+	i = encodeVarintTypes(dAtA, i, uint64(n49))
+	i--
+	dAtA[i] = 0x32
 	if len(m.AppHash) > 0 {
 		i -= len(m.AppHash)
 		copy(dAtA[i:], m.AppHash)
@@ -8039,6 +8060,8 @@ func (m *FinalizeBlockResponse) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
+	l = github_com_cosmos_gogoproto_types.SizeOfStdDuration(m.NextBlockDelay)
+	n += 1 + l + sovTypes(uint64(l))
 	return n
 }
 
@@ -14306,6 +14329,39 @@ func (m *FinalizeBlockResponse) Unmarshal(dAtA []byte) error {
 			m.AppHash = append(m.AppHash[:0], dAtA[iNdEx:postIndex]...)
 			if m.AppHash == nil {
 				m.AppHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NextBlockDelay", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := github_com_cosmos_gogoproto_types.StdDurationUnmarshal(&m.NextBlockDelay, dAtA[iNdEx:postIndex]); err != nil {
+				return err
 			}
 			iNdEx = postIndex
 		default:

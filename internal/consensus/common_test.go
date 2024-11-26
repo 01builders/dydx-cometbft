@@ -831,6 +831,8 @@ func randConsensusNet(t *testing.T, nValidators int, testName string, tickerFunc
 		})
 		state, _ := stateStore.LoadFromDBOrGenesisDoc(genDoc)
 		thisConfig := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
+		// Set timeout to 0 so `skipTimeoutCommit = true` during test.
+		thisConfig.Consensus.TimeoutCommit = 0
 		configRootDirs = append(configRootDirs, thisConfig.RootDir)
 		for _, opt := range configOpts {
 			opt(thisConfig)
@@ -877,6 +879,9 @@ func randConsensusNetWithPeers(
 		state, err := stateStore.LoadFromDBOrGenesisDoc(genDoc)
 		require.NoError(t, err)
 		thisConfig := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
+		// Set timeout to 0 so `skipTimeoutCommit = true` during test.
+		thisConfig.Consensus.TimeoutCommit = 0
+
 		configRootDirs = append(configRootDirs, thisConfig.RootDir)
 		ensureDir(filepath.Dir(thisConfig.Consensus.WalFile())) // dir for wal
 		if i == 0 {
