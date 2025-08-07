@@ -18,7 +18,6 @@ import (
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/types"
-	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // CListMempool is an ordered in-memory pool for transactions before they are
@@ -492,22 +491,22 @@ func (mem *CListMempool) handleRecheckTxResponse(tx types.Tx) func(res *abci.Res
 
 // isClobOrderTransaction returns true if the provided `mempoolTx` is a
 // Cosmos transaction containing a `MsgPlaceOrder` or `MsgCancelOrder` message.
-func (mem *CListMempool) isClobOrderTransaction(memTx *mempoolTx) bool {
-	cosmosTx := cosmostx.Tx{}
-	err := cosmosTx.Unmarshal(memTx.tx)
-	if err != nil {
-		mem.logger.Error("isClobOrderTransaction error. Invalid Cosmos Transaction.")
-		return false
-	}
+//func (mem *CListMempool) isClobOrderTransaction(memTx *mempoolTx) bool {
+//cosmosTx := cosmostx.Tx{}
+//err := cosmosTx.Unmarshal(memTx.tx)
+//if err != nil {
+//mem.logger.Error("isClobOrderTransaction error. Invalid Cosmos Transaction.")
+//return false
+//}
 
-	if cosmosTx.Body != nil && len(cosmosTx.Body.Messages) == 1 &&
-		(cosmosTx.Body.Messages[0].TypeUrl == "/dydxprotocol.clob.MsgPlaceOrder" ||
-			cosmosTx.Body.Messages[0].TypeUrl == "/dydxprotocol.clob.MsgCancelOrder") {
-		return true
-	}
+//if cosmosTx.Body != nil && len(cosmosTx.Body.Messages) == 1 &&
+//(cosmosTx.Body.Messages[0].TypeUrl == "/dydxprotocol.clob.MsgPlaceOrder" ||
+//cosmosTx.Body.Messages[0].TypeUrl == "/dydxprotocol.clob.MsgCancelOrder") {
+//return true
+//}
 
-	return false
-}
+//return false
+//}
 
 // Safe for concurrent use by multiple goroutines.
 func (mem *CListMempool) TxsAvailable() <-chan struct{} {
