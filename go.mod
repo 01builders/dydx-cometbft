@@ -1,8 +1,8 @@
 module github.com/cometbft/cometbft
 
-go 1.23.2
+go 1.23.5
 
-toolchain go1.24.5
+toolchain go1.23.9
 
 require (
 	github.com/BurntSushi/toml v1.4.0
