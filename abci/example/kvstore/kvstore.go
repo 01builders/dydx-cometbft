@@ -223,7 +223,7 @@ func (app *Application) FinalizeBlock(_ context.Context, req *types.RequestFinal
 			if err != nil {
 				panic(err)
 			}
-			app.valUpdates = append(app.valUpdates, types.UpdateValidator(pubKey, power, keyType))
+			app.valUpdates = append(app.valUpdates, types.UpdateValidator(pubKey, power, keyType, true))
 		} else {
 			app.stagedTxs = append(app.stagedTxs, tx)
 		}
