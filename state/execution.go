@@ -200,6 +200,9 @@ func (blockExec *BlockExecutor) ValidateBlock(state State, block *types.Block) e
 func (blockExec *BlockExecutor) ApplyVerifiedBlock(
 	state State, blockID types.BlockID, block *types.Block,
 ) (State, error) {
+	// Lock the mempool.
+	blockExec.mempool.Lock()
+	defer blockExec.mempool.Unlock()
 	return blockExec.applyBlock(state, blockID, block)
 }
 
