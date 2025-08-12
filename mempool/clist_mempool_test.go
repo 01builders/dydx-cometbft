@@ -1043,7 +1043,7 @@ func doUpdate(tb testing.TB, mp Mempool, height int64, txs []types.Tx) {
 	mp.Lock()
 	err := mp.FlushAppConn()
 	require.NoError(tb, err)
-	err = mp.Update(height, txs, abciResponses(len(txs), abci.CodeTypeOK), nil, nil)
+	err = mp.Update(height, time.UnixMilli(1), txs, abciResponses(len(txs), abci.CodeTypeOK), nil, nil)
 	require.NoError(tb, err)
 	mp.Unlock()
 }
