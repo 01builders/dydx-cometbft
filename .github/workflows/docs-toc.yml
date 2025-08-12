@@ -2,9 +2,9 @@
 name: Check documentation ToC
 on:
   pull_request:
-    push:
-      branches:
-        - v0.38.x
+  #push:
+    #branches:
+      #- v0.38.x
 
 jobs:
   check:

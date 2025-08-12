@@ -1,8 +1,8 @@
 name: Protobuf Lint
 on:
-  pull_request:
-    paths:
-      - 'proto/**'
+  #pull_request:
+    #paths:
+      #- 'proto/**'
   push:
     branches:
       - v0.38.x
