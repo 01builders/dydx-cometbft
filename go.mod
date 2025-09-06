@@ -43,7 +43,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/cometbft/cometbft-db v0.14.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
-	github.com/cosmos/cosmos-sdk v0.53.4
+	github.com/cosmos/cosmos-sdk v0.50.11
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/go-git/go-git/v5 v5.16.0
 	github.com/gofrs/uuid v4.4.0+incompatible
