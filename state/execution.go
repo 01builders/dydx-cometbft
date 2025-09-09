@@ -200,6 +200,9 @@ func (blockExec *BlockExecutor) ValidateBlock(state State, block *types.Block) e
 func (blockExec *BlockExecutor) ApplyVerifiedBlock(
 	state State, blockID types.BlockID, block *types.Block,
 ) (State, error) {
+	// Lock the mempool.
+	blockExec.mempool.Lock()
+	defer blockExec.mempool.Unlock()
 	return blockExec.applyBlock(state, blockID, block)
 }
 
@@ -234,10 +237,6 @@ func (blockExec *BlockExecutor) ApplyBlock(
 }
 
 func (blockExec *BlockExecutor) applyBlock(state State, blockID types.BlockID, block *types.Block) (State, error) {
-	// Lock the mempool.
-	blockExec.mempool.Lock()
-	defer blockExec.mempool.Unlock()
-
 	startTime := time.Now().UnixNano()
 	abciResponse, err := blockExec.proxyApp.FinalizeBlock(context.TODO(), &abci.RequestFinalizeBlock{
 		Hash:               block.Hash(),
