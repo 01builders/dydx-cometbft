@@ -3,6 +3,7 @@ package consensus
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -1995,9 +1996,41 @@ func (cs *State) defaultSetProposal(proposal *types.Proposal) error {
 	p := proposal.ToProto()
 	// Verify signature
 	pubKey := cs.Validators.GetProposer().PubKey
-	if !pubKey.VerifySignature(
-		types.ProposalSignBytes(cs.state.ChainID, p), proposal.Signature,
-	) {
+	// compute sign bytes once so we can inspect them
+	signBytes := types.ProposalSignBytes(cs.state.ChainID, p)
+	// lightweight fingerprint helpers
+	var sigFirst8 string
+	if len(proposal.Signature) >= 8 {
+		sigFirst8 = fmt.Sprintf("%X", proposal.Signature[:8])
+	} else {
+		sigFirst8 = fmt.Sprintf("%X", proposal.Signature)
+	}
+	// hash of sign bytes for cross-node comparison
+	signBytesHash := sha256.Sum256(signBytes)
+	cs.Logger.Info("PIERRICK: verify proposal signature",
+		"height", proposal.Height,
+		"round", proposal.Round,
+		"pol_round", proposal.POLRound,
+		"chain_id", cs.state.ChainID,
+		"expected_proposer_pubkey_type", pubKey.Type(),
+		"expected_proposer_address", pubKey.Address(),
+		"signature_len", len(proposal.Signature),
+		"signature_first8", sigFirst8,
+		"sign_bytes_len", len(signBytes),
+		"sign_bytes_sha256", fmt.Sprintf("%X", signBytesHash[:]),
+		"block_id", proposal.BlockID.String(),
+	)
+	if !pubKey.VerifySignature(signBytes, proposal.Signature) {
+		cs.Logger.Error("PIERRICK: invalid proposal signature",
+			"height", proposal.Height,
+			"round", proposal.Round,
+			"pol_round", proposal.POLRound,
+			"chain_id", cs.state.ChainID,
+			"expected_proposer_address", pubKey.Address(),
+			"signature_len", len(proposal.Signature),
+			"signature_first8", sigFirst8,
+			"sign_bytes_sha256", fmt.Sprintf("%X", signBytesHash[:]),
+		)
 		return ErrInvalidProposalSignature
 	}
 
