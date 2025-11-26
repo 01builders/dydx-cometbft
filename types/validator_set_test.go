@@ -1373,6 +1373,44 @@ func TestNewValidatorSetFromExistingValidators(t *testing.T) {
 	assert.Equal(t, valSet.CopyIncrementProposerPriority(3), existingValSet.CopyIncrementProposerPriority(3))
 }
 
+func TestValidatorSetFromExistingValidatorsWithProposer(t *testing.T) {
+	size := 5
+	vals := make([]*Validator, size)
+	for i := 0; i < size; i++ {
+		pv := NewMockPV()
+		vals[i] = pv.ExtractIntoValidator(int64(i + 1))
+	}
+	valSet := NewValidatorSet(vals)
+	valSet.IncrementProposerPriority(5)
+
+	// Test with correct proposer address - should set the proposer correctly
+	proposerAddr := valSet.Proposer.Address
+	existingValSet, err := ValidatorSetFromExistingValidatorsWithProposer(valSet.Validators, proposerAddr)
+	assert.NoError(t, err)
+	assert.Equal(t, valSet.Proposer.Address, existingValSet.Proposer.Address)
+	assert.Equal(t, valSet, existingValSet)
+
+	// Test with a different validator's address - should set that validator as proposer
+	differentVal := valSet.Validators[0]
+	if differentVal.Address.String() == proposerAddr.String() {
+		differentVal = valSet.Validators[1]
+	}
+	existingValSet2, err := ValidatorSetFromExistingValidatorsWithProposer(valSet.Validators, differentVal.Address)
+	assert.NoError(t, err)
+	assert.Equal(t, differentVal.Address, existingValSet2.Proposer.Address)
+
+	// Test with nil proposer address - should fallback to findPreviousProposer
+	existingValSet3, err := ValidatorSetFromExistingValidatorsWithProposer(valSet.Validators, nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, existingValSet3.Proposer)
+
+	// Test with non-existent address - should fallback to findPreviousProposer
+	fakeAddr := []byte("nonexistentaddress12345")
+	existingValSet4, err := ValidatorSetFromExistingValidatorsWithProposer(valSet.Validators, fakeAddr)
+	assert.NoError(t, err)
+	assert.NotNil(t, existingValSet4.Proposer)
+}
+
 func TestValSetUpdateOverflowRelated(t *testing.T) {
 	testCases := []testVSetCfg{
 		{

@@ -957,6 +957,17 @@ func ValidatorSetFromProto(vp *cmtproto.ValidatorSet) (*ValidatorSet, error) {
 // changing the proposer priority or power if any of the validators fail
 // validate basic then an empty set is returned.
 func ValidatorSetFromExistingValidators(valz []*Validator) (*ValidatorSet, error) {
+	return ValidatorSetFromExistingValidatorsWithProposer(valz, nil)
+}
+
+// ValidatorSetFromExistingValidatorsWithProposer takes an existing array of validators and
+// a proposer address, and rebuilds the exact same validator set that corresponds to it
+// without changing the proposer priority or power. If proposerAddr is provided, the
+// proposer will be set to the validator with that address. If proposerAddr is nil or
+// no validator matches, it falls back to finding the previous proposer by priority.
+// This is particularly important for state sync where the proposer must be correctly
+// identified from the block header to maintain consensus consistency.
+func ValidatorSetFromExistingValidatorsWithProposer(valz []*Validator, proposerAddr Address) (*ValidatorSet, error) {
 	if len(valz) == 0 {
 		return nil, errors.New("validator set is empty")
 	}
@@ -970,10 +981,21 @@ func ValidatorSetFromExistingValidators(valz []*Validator) (*ValidatorSet, error
 	vals := &ValidatorSet{
 		Validators: valz,
 	}
-	vals.checkAllKeysHaveSameType()
-	vals.Proposer = vals.findPreviousProposer()
 	vals.updateTotalVotingPower()
 	sort.Sort(ValidatorsByVotingPower(vals.Validators))
+
+	// If proposer address is provided, find and set the proposer
+	if len(proposerAddr) > 0 {
+		for _, val := range vals.Validators {
+			if bytes.Equal(val.Address, proposerAddr) {
+				vals.Proposer = val
+				return vals, nil
+			}
+		}
+	}
+
+	// Fallback to finding proposer by lowest priority (previous proposer heuristic)
+	vals.Proposer = vals.findPreviousProposer()
 	return vals, nil
 }
 
